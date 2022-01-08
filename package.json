@@ -1,0 +1,22 @@
+{
+  "name": "mmbn-to-onb-animations",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Keristero/mmbn-to-onb-animations.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Keristero/mmbn-to-onb-animations/issues"
+  },
+  "homepage": "https://github.com/Keristero/mmbn-to-onb-animations#readme",
+  "dependencies": {
+    "x2js": "^3.4.2"
+  }
+}
