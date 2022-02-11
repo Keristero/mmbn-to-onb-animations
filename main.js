@@ -1,7 +1,7 @@
 const { readdir ,stat, open, readFile ,writeFile} =  require('fs/promises')
 const { createCanvas, loadImage } = require('canvas')
 const potpack = require('potpack');
-const {filter_folders,file_exists_in_folder,get_first_object_key_value,get_first_object_key_name} = require('./helpers.js')
+const {filter_folders,file_exists_in_folder,get_first_object_key_value,get_first_object_key_name,round_to_decimal_points} = require('./helpers.js')
 const path = require('path')
 const X2JS = require('x2js')
 
@@ -21,8 +21,7 @@ main()
 async function main(){
     const animation_folder_list = await add_animation_folders_to_list(path.resolve(input_folder_path))
     for(let folder_path of animation_folder_list){
-        await parse_mmbn_animation_folder(folder_path)
-        return
+        await convert_animation_to_onb(folder_path)
     }
 }
 
@@ -153,55 +152,66 @@ async function convert_animation_to_onb(folder_path){
             let image_path = path.join(folder_path,'frames',`animation_${animation_index}_frame_${frame_index}.png`)
             let parsed_frame = {
                 image:await loadImage(image_path),
-                delay:parseInt(frame.FrameDelay)*16.66,
-                anchor:parsed_objects[frame_index]
+                duration:parseInt(frame.FrameDelay)*16.66,
+                anchor:parsed_objects[frame_index].anchor
             }
             console.log(parsed_frame)
             parsed_animation.frames.push(parsed_frame)
         }
         //after loading all frames, potpack them into a spritesheet by making a list of their boxes
         for(let frame of parsed_animation.frames){
-            boxes.push({w:frame.image.width+compact_padding_spacing,h:frame.image.height+compact_padding_spacing,img:frame.image})
+            boxes.push({w:frame.image.width+compact_padding_spacing,h:frame.image.height+compact_padding_spacing,frame:frame})
         }
         parsed_animations.push(parsed_animation)
         animation_index++
     }
+    //Now generate the spritesheet with all the frames
     const {w:canvas_width, h:canvas_height, fill} = potpack(boxes);
-    console.log(canvas_width,canvas_height)
-    console.log('anim boxes',boxes)
     const output_canvas = createCanvas(canvas_width,canvas_height)
     const ctx = output_canvas.getContext('2d')
     for(let box of boxes){
-        ctx.drawImage(box.img, box.x+compact_side_padding, box.y+compact_side_padding, box.w-compact_padding_spacing, box.h-compact_padding_spacing)
+        let image = box.frame.image
+        let new_x = box.x+compact_side_padding
+        let new_y = box.y+compact_side_padding
+        let width = box.w-compact_padding_spacing
+        let height = box.h-compact_padding_spacing
+        //draw the frame
+        ctx.drawImage(image, new_x, new_y, width, height)
+        //save values to frame for the animation file
+        box.frame.x = new_x
+        box.frame.y = new_y
+        box.frame.width = width
+        box.frame.height = height
     }
-    await writeFile(`${parsed_animation.name}.png`, output_canvas.toBuffer())
+    await writeFile(`${original_animation_name}.png`, output_canvas.toBuffer())
 
     console.log("PARSED ANIMATIONS",parsed_animations)
 
+
+    const animation_file_text = generate_animation_file_contents(parsed_animations)
+    await writeFile(`${original_animation_name}.animation`, animation_file_text, { overwrite: true });
+
 }
 
-function generate_animation_file_contents(parsed_animation){
+function generate_animation_file_contents(parsed_animations){
     let output_txt = ""
-    for(let parsed_frame of parsed_animation.frames){
-        let copies = [{state_name:animation_state.state_name,flip_x:false,flip_y:false,speed_multi:1}]
+    let animation_index = 0
+    for(let animation of parsed_animations){
+        let copies = [{state_name:animation.name,flip_x:false,flip_y:false,speed_multi:1}]
 
         for(let copy of copies){
             let {state_name,flip_x,flip_y,speed_multi,reverse} = copy
 
-            output_txt += `animation state="${state_name}"\n`
+            output_txt += `animation state="${animation_index}"\n`
 
             if(reverse){
                 //Reverse the array if it should be reversed
-                animation_state.frames.reverse()
+                animation.frames.reverse()
             }
-            for(let frame of animation_state.frames){
+            for(let frame of animation.frames){
                 console.log("FRAME=",frame)
-                let frame_ref = frame
-                if(frame.duplicate_of){
-                    frame_ref = frame.duplicate_of
-                }
-                let {x,y,width,height} = frame_ref
-                let {duration,anchor_x,anchor_y} = frame
+                let {x,y,width,height,duration} = frame
+                let {x:anchor_x,y:anchor_y} = frame.anchor
 
                 out_flipped_x = frame.flip_x ? !flip_x : flip_x
                 out_flipped_y = frame.flip_y ? !flip_y : flip_y
@@ -227,12 +237,13 @@ function generate_animation_file_contents(parsed_animation){
             }
             if(reverse){
                 //Reverse the array again when we are done to put it back in the correct order
-                animation_state.frames.reverse()
+                animation.frames.reverse()
             }
 
             //Line break between each animation
             output_txt += `\n`
         }
+        animation_index++
     }
     return output_txt
 }

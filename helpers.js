@@ -28,4 +28,9 @@ get_first_object_key_name = function(object){
     return first_key_name
 }
 
-module.exports = {filter_folders,file_exists_in_folder,get_first_object_key_value,get_first_object_key_name}
+function round_to_decimal_points(num,x) {
+    return +(Math.round(num + `e+${x}`)  + `e-${x}`);
+}
+
+
+module.exports = {filter_folders,file_exists_in_folder,get_first_object_key_value,get_first_object_key_name,round_to_decimal_points}
