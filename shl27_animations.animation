@@ -1,9 +1,9 @@
 animation state="0"
 frame duration="0.117" x="2" y="2" w="32" h="32" originx="16" originy="16"
-frame duration="0.117" x="38" y="2" w="30" h="30" originx="15" originy="15"
+frame duration="0.117" x="38" y="2" w="30" h="30" originx="16" originy="16"
 
 animation state="1"
-frame duration="0.083" x="2" y="38" w="28" h="28" originx="16" originy="16"
+frame duration="0.083" x="2" y="38" w="28" h="28" originx="15" originy="15"
 frame duration="0.083" x="34" y="38" w="28" h="28" originx="15" originy="15"
 
 animation state="2"

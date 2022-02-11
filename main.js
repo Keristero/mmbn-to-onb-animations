@@ -135,6 +135,7 @@ async function convert_animation_to_onb(folder_path){
     let animations = animation_doc[original_animation_name]
     let parsed_animations = []
     let animation_index = 0
+    let object_index = 0
     const boxes = []
     for(let animation_name in animations){
         let frames = animations[animation_name]
@@ -153,7 +154,7 @@ async function convert_animation_to_onb(folder_path){
             let parsed_frame = {
                 image:await loadImage(image_path),
                 duration:parseInt(frame.FrameDelay)*16.66,
-                anchor:parsed_objects[frame_index].anchor
+                anchor:parsed_objects[object_index].anchor
             }
             console.log(parsed_frame)
             parsed_animation.frames.push(parsed_frame)
@@ -164,6 +165,7 @@ async function convert_animation_to_onb(folder_path){
         }
         parsed_animations.push(parsed_animation)
         animation_index++
+        object_index++
     }
     //Now generate the spritesheet with all the frames
     const {w:canvas_width, h:canvas_height, fill} = potpack(boxes);
@@ -182,6 +184,11 @@ async function convert_animation_to_onb(folder_path){
         box.frame.y = new_y
         box.frame.width = width
         box.frame.height = height
+        ctx.fillStyle = "red"
+        ctx.fillRect(new_x, new_y, 1, 1)
+        ctx.fillStyle = "rgb(0,255,0)"
+        console.log(box.frame.anchor)
+        ctx.fillRect(new_x+box.frame.anchor.x, new_y+box.frame.anchor.y, 1, 1)
     }
     await writeFile(`${original_animation_name}.png`, output_canvas.toBuffer())
 
