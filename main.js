@@ -4,15 +4,26 @@ const potpack = require('potpack');
 const {filter_folders,file_exists_in_folder,get_first_object_key_value,get_first_object_key_name} = require('./helpers.js')
 const path = require('path')
 const X2JS = require('x2js')
+
 const names = {
     animations:"animations.xml",
+<<<<<<< HEAD
     object_lists:"objectLists.xml",
     sub_anims:"subAnims.xml",
+=======
+    object_list:"objectLists.xml",
+    frame_delay:"FrameDelay",
+    loop_flag:"_Loop"
+>>>>>>> 808c774213694a44acdbaa67087145aa8b182191
 }
 const compact_padding_spacing = 4 //4 pixels total, 2 either side
 const compact_side_padding = Math.floor(compact_padding_spacing*0.5)
 
+<<<<<<< HEAD
 const input_folder_path = `C://Users//Keris//Desktop//BN All Sprites//test_inputs`
+=======
+const input_folder_path = `E://00_pl`
+>>>>>>> 808c774213694a44acdbaa67087145aa8b182191
 const output_folder_path = `./output`
 
 main()
@@ -20,7 +31,8 @@ main()
 async function main(){
     const animation_folder_list = await add_animation_folders_to_list(path.resolve(input_folder_path))
     for(let folder_path of animation_folder_list){
-        await convert_animation_to_onb(folder_path)
+        await parse_mmbn_animation_folder(folder_path)
+        return
     }
 }
 
