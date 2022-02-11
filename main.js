@@ -1,9 +1,10 @@
-const { readdir ,stat, open, readFile ,writeFile} =  require('fs/promises')
+const { readdir ,stat, open, readFile ,writeFile, mkdir} =  require('fs/promises')
 const { createCanvas, loadImage } = require('canvas')
 const potpack = require('potpack');
 const {filter_folders,file_exists_in_folder,get_first_object_key_value,get_first_object_key_name,round_to_decimal_points} = require('./helpers.js')
 const path = require('path')
 const X2JS = require('x2js')
+const debug_points = false
 
 const names = {
     animations:"animations.xml",
@@ -13,7 +14,7 @@ const names = {
 const compact_padding_spacing = 4 //4 pixels total, 2 either side
 const compact_side_padding = Math.floor(compact_padding_spacing*0.5)
 
-const input_folder_path = `C://Users//Keris//Desktop//BN All Sprites//test_inputs`
+const input_folder_path = `C://Users//Keris//Desktop//BN All Sprites`
 const output_folder_path = `./output`
 
 main()
@@ -45,14 +46,12 @@ async function add_animation_folders_to_list(root_folder,animation_folder_list =
 
 async function parse_xml_document(xml_path){
     const xml_file = await readFile(xml_path, 'utf8')
-    //console.log('opened animation file',animation_file)
     let x2js = new X2JS();
     let document = x2js.xml2js(xml_file);
     return document
 }
 
 function parse_fragment_size(size_string){
-    console.log(size_string)
     let arr_values = size_string.split('x')
     let size = {
         x:parseInt(arr_values[0]),
@@ -79,7 +78,6 @@ function find_object_anchor(object){
     }
     for(let fragment_name in object){
         let fragment = object[fragment_name]
-        console.log(fragment)
         let size = parse_fragment_size(fragment.Size)
         let position = parse_fragment_position(fragment.PositionXY)
         let fragment_min_x = position.x
@@ -99,10 +97,9 @@ function find_object_anchor(object){
             bounds.max.y = fragment_max_y
         }
     }
-    //console.log('bounds = ',bounds)
     return {
-        x:Math.abs(bounds.min.x),
-        y:Math.abs(bounds.min.y)
+        x:(bounds.min.x*-1),
+        y:(bounds.min.y*-1)
     }
 }
 
@@ -112,7 +109,6 @@ async function convert_animation_to_onb(folder_path){
     //Parse objects
     const object_lists_path = path.join(folder_path,names.object_lists)
     const object_lists_doc = await parse_xml_document(object_lists_path)
-    console.log(object_lists_doc)
     let object_list = get_first_object_key_value(object_lists_doc)
     let parsed_objects = []
     for(let object_name in object_list){
@@ -123,14 +119,12 @@ async function convert_animation_to_onb(folder_path){
         }
         parsed_objects.push(parsed_object)
     }
-    console.log("PARSED OBJECTS",parsed_objects)
 
     //TODO parse sub animations, they dont seem to be required for most things
 
     //Parse animations
     const animation_file_path = path.join(folder_path,names.animations)
     const animation_doc = await parse_xml_document(animation_file_path)
-    console.log(animation_doc)
     let original_animation_name = get_first_object_key_name(animation_doc)
     let animations = animation_doc[original_animation_name]
     let parsed_animations = []
@@ -152,12 +146,16 @@ async function convert_animation_to_onb(folder_path){
             }
             let image_path = path.join(folder_path,'frames',`animation_${animation_index}_frame_${frame_index}.png`)
             let parsed_frame = {
-                image:await loadImage(image_path),
+                image:null,
                 duration:parseInt(frame.FrameDelay)*16.66,
                 anchor:parsed_objects[object_index].anchor
             }
-            console.log(parsed_frame)
-            parsed_animation.frames.push(parsed_frame)
+            try{
+                parsed_frame.image = await loadImage(image_path)
+                parsed_animation.frames.push(parsed_frame)
+            }catch(e){
+                console.log(`unable to load image ${image_path}`)
+            }
         }
         //after loading all frames, potpack them into a spritesheet by making a list of their boxes
         for(let frame of parsed_animation.frames){
@@ -166,6 +164,10 @@ async function convert_animation_to_onb(folder_path){
         parsed_animations.push(parsed_animation)
         animation_index++
         object_index++
+    }
+    //if we parsed no frames, skip
+    if(boxes.length == 0){
+        return
     }
     //Now generate the spritesheet with all the frames
     const {w:canvas_width, h:canvas_height, fill} = potpack(boxes);
@@ -184,20 +186,28 @@ async function convert_animation_to_onb(folder_path){
         box.frame.y = new_y
         box.frame.width = width
         box.frame.height = height
-        ctx.fillStyle = "red"
-        ctx.fillRect(new_x, new_y, 1, 1)
-        ctx.fillStyle = "rgb(0,255,0)"
-        console.log(box.frame.anchor)
-        ctx.fillRect(new_x+box.frame.anchor.x, new_y+box.frame.anchor.y, 1, 1)
+        if(debug_points){
+            ctx.fillStyle = "red"
+            ctx.fillRect(new_x, new_y, 1, 1)
+            ctx.fillStyle = "rgb(0,255,0)"
+            ctx.fillRect(new_x+box.frame.anchor.x, new_y+box.frame.anchor.y, 1, 1)
+        }
     }
-    await writeFile(`${original_animation_name}.png`, output_canvas.toBuffer())
-
-    console.log("PARSED ANIMATIONS",parsed_animations)
-
-
+    //generate .animation file
     const animation_file_text = generate_animation_file_contents(parsed_animations)
-    await writeFile(`${original_animation_name}.animation`, animation_file_text, { overwrite: true });
 
+    //determine output dir
+    let subfolder = path.relative(input_folder_path, folder_path)
+    let not_so_specific_subfolder = path.join(subfolder,"..")
+    let better_named_subfolder = replace_obscure_names(not_so_specific_subfolder)
+    let output_subfolder = path.join(output_folder_path,better_named_subfolder)
+
+    let better_animation_name = replace_obscure_names(original_animation_name)
+
+    //Now save output files!
+    await mkdir(output_subfolder, { recursive: true,overwrite: true })
+    await writeFile(path.join(output_subfolder,`${better_animation_name}.png`), output_canvas.toBuffer(),{ overwrite: true})
+    await writeFile(path.join(output_subfolder,`${better_animation_name}.animation`), animation_file_text,{ overwrite: true});
 }
 
 function generate_animation_file_contents(parsed_animations){
@@ -216,7 +226,6 @@ function generate_animation_file_contents(parsed_animations){
                 animation.frames.reverse()
             }
             for(let frame of animation.frames){
-                console.log("FRAME=",frame)
                 let {x,y,width,height,duration} = frame
                 let {x:anchor_x,y:anchor_y} = frame.anchor
 
@@ -253,4 +262,23 @@ function generate_animation_file_contents(parsed_animations){
         animation_index++
     }
     return output_txt
+}
+
+function replace_obscure_names(string){
+    let obscure_names = {
+        pl:"player",
+        psl:"player_fx",
+        set:"set_pieces",
+        em:"enemy",
+        bs:"boss",
+        shl:"battle_fx",
+        efc:"overlay_fx",
+        man:"overworld_sprite",
+        fac:"mugshot",
+        icn:"misc"
+    }
+    for(let name in obscure_names){
+        string = string.replace(name,obscure_names[name])
+    }
+    return string
 }
