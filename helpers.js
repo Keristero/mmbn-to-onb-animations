@@ -18,4 +18,14 @@ file_exists_in_folder = async function(folder_path,file_name){
     }
 }
 
-module.exports = {filter_folders,file_exists_in_folder}
+get_first_object_key_value = function(object){
+    let first_key_name = Object.keys(object)[0]
+    return object[first_key_name]
+}
+
+get_first_object_key_name = function(object){
+    let first_key_name = Object.keys(object)[0]
+    return first_key_name
+}
+
+module.exports = {filter_folders,file_exists_in_folder,get_first_object_key_value,get_first_object_key_name}

@@ -17,6 +17,8 @@
   },
   "homepage": "https://github.com/Keristero/mmbn-to-onb-animations#readme",
   "dependencies": {
+    "canvas": "^2.9.0",
+    "potpack": "^1.0.2",
     "x2js": "^3.4.2"
   }
 }
